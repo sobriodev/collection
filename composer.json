@@ -1,0 +1,16 @@
+{
+    "name": "sobriodev/collection",
+    "description": "Collection library provides a simple way to access and modify nested arrays",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Mateusz Kiełbasa",
+            "email": "sobriodev@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Collection\\": "src/"
+        }
+    }
+}
