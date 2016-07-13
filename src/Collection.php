@@ -31,6 +31,18 @@ class Collection
         }
     }
 
+    public function has(string $path)
+    {
+        $this->expectValidPath($path);
+        
+        try {
+            $this->search(explode('.', $path));
+            return true;
+        } catch (\OutOfBoundsException $e) {
+            return false;
+        }
+    }
+
     public function unset(string $path)
     {
         $this->expectValidPath($path);
@@ -57,7 +69,7 @@ class Collection
 
     private function &search(array $keys, bool $byReference = false)
     {
-        $response = $byReference ? $response = &$this->elements : $this->elements;
+        $response = $byReference ? $response =& $this->elements : $this->elements;
 
         for ($i = 0, $lastIndex = count($keys) - 1; $i <= $lastIndex; $i++) {
             $key = $keys[$i];
@@ -66,7 +78,7 @@ class Collection
             if (!$keyExists || ($keyExists && $i !== $lastIndex && !is_array($response[$key]))) {
                 $this->createKeyNotFoundException($keyExists ? $keys[$i + 1] : $key);
             }
-            $response = $byReference ? $response = &$response[$key] : $response[$key];
+            $response = $byReference ? $response =& $response[$key] : $response[$key];
         }
         return $response;
     }
