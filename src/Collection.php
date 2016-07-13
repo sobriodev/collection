@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: maki
- * Date: 12.07.16
- * Time: 20:28
- */
 
 namespace Collection;
 
@@ -23,16 +17,42 @@ class Collection
         return $this->elements;
     }
 
-    public function get(string $path)
+    public function get(string $path, $placeholder = null)
     {
         $this->expectValidPath($path);
 
         try {
             return $this->search(explode('.', $path));
         } catch (\OutOfBoundsException $e) {
-            echo $e->getMessage();
-            exit;
+            if (is_null($placeholder)) {
+                throw $e;
+            }
+            return $placeholder;
         }
+    }
+
+    public function unset(string $path)
+    {
+        $this->expectValidPath($path);
+        $keys = explode('.', $path);
+
+        if (count($keys) == 1) {
+            $key = $keys[0];
+
+            if (!array_key_exists($key, $this->elements)) {
+                $this->createKeyNotFoundException($key);
+            }
+            unset($this->elements[$key]);
+        } else {
+            $lastKey = array_pop($keys);
+            $response =& $this->search($keys, true);
+
+            if (!is_array($response)) {
+                $this->createKeyNotFoundException($lastKey);
+            }
+            unset($response[$lastKey]);
+        }
+        return $this;
     }
 
     private function &search(array $keys, bool $byReference = false)
@@ -44,9 +64,7 @@ class Collection
             $keyExists = array_key_exists($key, $response);
 
             if (!$keyExists || ($keyExists && $i !== $lastIndex && !is_array($response[$key]))) {
-                throw new \OutOfBoundsException(
-                    sprintf('%s key doesn\'t exist', $keyExists ? $keys[$i + 1] : $key)
-                );
+                $this->createKeyNotFoundException($keyExists ? $keys[$i + 1] : $key);
             }
             $response = $byReference ? $response = &$response[$key] : $response[$key];
         }
@@ -60,5 +78,12 @@ class Collection
                 sprintf('%s isn\'t valid path', $path)
             );
         }
+    }
+
+    private function createKeyNotFoundException($key)
+    {
+        throw new \OutOfBoundsException(
+            sprintf('%s key doesn\'t exist', $key)
+        );
     }
 }
