@@ -13,11 +13,12 @@ class Collection
 
     private $elements = [];
 
-    private $cache = [];
+    private $cache;
 
     public function __construct(array $elements = [])
     {
         $this->elements = $elements;
+        $this->cache = new Cache();
     }
 
     public function getElements()
@@ -50,12 +51,52 @@ class Collection
         }
     }
 
-    public function set(string $path, bool $strict = false)
+    public function set(string $path, $value, bool $strict = false)
     {
+        $keys = explode('.', $path);
+        $keysCopy = $keys;
+        $elements =& $this->elements;
+        $usedPath = [];
 
+        for ($i = 0, $lastIndex = count($keys) - 1; $i <= $lastIndex; $i++) {
+            $key = $keys[$i];
+
+            if (!array_key_exists($key, $elements)) {
+                if ($i !== $lastIndex) {
+                    array_shift($keysCopy);
+                    $elements[$key] = $this->createLevel($keysCopy, $value);
+                    break;
+                }
+                $elements[$key] = $value;
+            } else {
+                if ($i === $lastIndex) {
+                    $usedPath[] = $key;
+
+                    if ($strict === true) {
+                        $this->createStrictTypeException($usedPath);
+                    }
+                    $elements[$key] = $value;
+                } else {
+                    array_shift($keysCopy);
+
+                    if (!is_array($elements[$key])) {
+                        $usedPath[] = $key;
+
+                        if ($strict === true) {
+                            $this->createStrictTypeException($usedPath);
+                        }
+                        $elements[$key] = $this->createLevel($keysCopy, $value);
+                        break;
+                    }
+                    $usedPath[] = $key;
+                    $elements =& $elements[$key];
+                }
+            }
+        }
+        return $this;
     }
 
-    public function unset(string $path): Collection
+    public function unset(string $path)
     {
         $this->expectValidPath($path);
         $keys = explode('.', $path);
@@ -98,12 +139,7 @@ class Collection
     //TODO add cache obj
     private function getByRequest(string $path, int $request)
     {
-        if (array_key_exists($path, $this->cache)) {
-            $response = $this->cache[$path];
-        } else {
-            $response = $this->search(explode('.', $path));
-            $this->cache[$path] = $response;
-        }
+        $response = $this->search(explode('.', $path));
 
         switch ($request) {
             case self::GET_REQUEST:
@@ -127,6 +163,14 @@ class Collection
         return $response;
     }
 
+    private function createLevel(array $keys, $value): array
+    {
+        foreach ($keys as $key) {
+            $value = [$key => $value];
+        }
+        return $value;
+    }
+
     private function expectValidPath(string $path)
     {
         if (!preg_match(sprintf('/^(?:%1$s)+(?:\.(?:%1$s)+)*$/', self::KEY_PATTERN), $path)) {
@@ -136,10 +180,17 @@ class Collection
         }
     }
 
-    private function createKeyNotFoundException($key)
+    private function createKeyNotFoundException(string $key)
     {
         throw new \OutOfBoundsException(
             sprintf('[%s] key doesn\'t exist', $key)
+        );
+    }
+
+    private function createStrictTypeException(array $usedPath)
+    {
+        throw new \Exception(
+            sprintf('[%s] path returned value (strict type enabled)', implode('.', $usedPath))
         );
     }
 }
